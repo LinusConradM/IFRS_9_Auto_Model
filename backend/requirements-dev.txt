@@ -1,0 +1,2 @@
+# Development dependencies for backend tests and linters
+pytest
