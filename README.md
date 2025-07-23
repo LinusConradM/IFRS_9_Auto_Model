@@ -52,18 +52,6 @@ Copy the example environment file and update the variables:
 ```bash
 cp .env.example .env
 # Edit .env and configure your database credentials
-# Optionally configure AI agent and credentials:
-# AI_AGENT=codex  # or "claude"
-# CLAUDE_API_KEY=your_claude_api_key
-# OPENAI_API_KEY=your_openai_api_key
-```
-
-### Running Backend Tests
-
-From the `backend` directory, run:
-
-```bash
-pytest
 ```
 
 ### Docker Compose (Local Development)
