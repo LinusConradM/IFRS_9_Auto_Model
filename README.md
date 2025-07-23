@@ -45,6 +45,23 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
+#### Database Migrations
+
+Apply initial schema migrations with Alembic:
+
+```bash
+cd backend
+alembic upgrade head
+```
+
+#### Seeding Data
+
+Populate the loan_portfolio table from a CSV file:
+
+```bash
+python services/seed_ifrs9.py path/to/your/loan_data.csv
+```
+
 ### Environment Variables
 
 Copy the example environment file and update the variables:
