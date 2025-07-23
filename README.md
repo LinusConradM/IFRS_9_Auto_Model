@@ -38,11 +38,22 @@ cd IFRS_9-automation
 
 ### Backend Setup
 
+
 ```bash
 cd backend
 python3.9 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+```
+
+### Running Backend Tests
+
+Ensure pytest is installed and run tests for the AI agent abstractions:
+
+```bash
+# from backend directory
+pip install pytest
+pytest tests/
 ```
 
 ### Environment Variables
@@ -51,7 +62,7 @@ Copy the example environment file and update the variables:
 
 ```bash
 cp .env.example .env
-# Edit .env and configure your database credentials
+# Edit .env and configure your database credentials and AI agent API keys
 ```
 
 ### Docker Compose (Local Development)
