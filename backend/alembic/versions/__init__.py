@@ -1,0 +1,1 @@
+"""Version directory for Alembic migrations."""
