@@ -1,5 +1,4 @@
 // frontend/src/App.tsx
-import React from 'react';
 
 import React from 'react';
 import UploadInstruments from './components/UploadInstruments';
@@ -16,4 +15,3 @@ function App() {
 }
 
 export default App;
-
