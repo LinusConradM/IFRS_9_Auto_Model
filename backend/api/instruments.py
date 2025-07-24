@@ -8,6 +8,7 @@ from db.session import SessionLocal
 from db.models import RawInstrument
 from services.instrument_upload_service import process_instrument_upload
 from db.schemas import RawInstrumentSchema
+from db.schemas import IFRS9InstrumentSchema
 
 router = APIRouter()
 
@@ -54,3 +55,12 @@ def list_instruments(
         else:
             rows = [r for r in rows if not r.errors]
     return rows
+
+
+@router.post("/validate_ifrs9", response_model=IFRS9InstrumentSchema)
+async def validate_ifrs9(payload: IFRS9InstrumentSchema):
+    """
+    Validate a JSON payload against the full IFRS9InstrumentSchema.
+    Returns the parsed schema or a 422 error on validation failure.
+    """
+    return payload

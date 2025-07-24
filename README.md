@@ -45,6 +45,19 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
+#### IFRS9 JSON Validation Endpoint
+
+A new FastAPI endpoint is available to validate instrument payloads against the full IFRS9 schema:
+
+```http
+POST /validate_ifrs9 HTTP/1.1
+Content-Type: application/json
+
+{ /* IFRS9InstrumentSchema JSON */ }
+```
+
+This returns the parsed IFRS9InstrumentSchema or a 422 response with validation errors.
+
 #### Database Migrations
 
 Generate and apply database migrations (skip initialization if already set up):
@@ -83,6 +96,11 @@ From the `backend` directory, run:
 ```bash
 pytest
 ```
+
+New tests for the IFRS9 schema and validation endpoint have been added:
+
+- `backend/tests/test_ifrs9_schema.py`
+- `backend/tests/test_api_ifrs9_validation.py`
 
 ### Docker Compose (Local Development)
 
