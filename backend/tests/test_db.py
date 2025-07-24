@@ -16,6 +16,16 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 # compile JSONB types as JSON in SQLite for tests
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.dialects.postgresql import JSONB
+from dateutil import parser as date_parser
+
+
+def try_parse_date(value):
+    try:
+        return date_parser.parse(value).date() if value else None
+    except Exception:
+        return None
+
+
 
 @compiles(JSONB, 'sqlite')
 def _compile_jsonb_sqlite(type_, compiler, **kw):
