@@ -2,7 +2,7 @@
 Pydantic schemas for IFRS 9 database models.
 """
 from datetime import date, datetime
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Any
 from pydantic import BaseModel
 
 
@@ -184,6 +184,58 @@ class ECLForecastSchema(BaseModel):
     ecl_curve_json: Dict
     generated_by: str
     generated_at: datetime
+
+    class Config:
+        orm_mode = True
+
+
+class UploadHistorySchema(BaseModel):
+    upload_id: int
+    filename: str
+    checksum: str
+    uploaded_by: Optional[str]
+    upload_timestamp: datetime
+    schema_version: str
+    total_rows: int
+    valid_rows: int
+    invalid_rows: int
+
+    class Config:
+        orm_mode = True
+
+
+class RawInstrumentSchema(BaseModel):
+    id: int
+    upload_id: int
+    row_number: int
+    raw_data: Dict[str, Any]
+    errors: Optional[List[str]]
+
+    class Config:
+        orm_mode = True
+
+
+class ValidatedInstrumentSchema(BaseModel):
+    id: int
+    upload_id: int
+    instrument_id: str
+    borrower_id: str
+    asset_class: str
+    classification_category: str
+    measurement_basis: str
+    off_balance_flag: bool
+    pd_12m: float
+    pd_lifetime: float
+    lgd: float
+    ead: float
+    sicr_flag: bool
+    eir: float
+    collateral_flag: bool
+    collateral_type: Optional[str]
+    collateral_value: Optional[float]
+    appraisal_date: Optional[date]
+    drawdown_date: date
+    maturity_date: date
 
     class Config:
         orm_mode = True
