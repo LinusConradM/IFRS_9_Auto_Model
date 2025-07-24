@@ -13,6 +13,11 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
+# Logic modules implementing IFRS 9 staging, classification, and explainability
+from .staging_logic import evaluate_staging_logic
+from .classification_logic import classify_instrument
+from .explainability import generate_explainability_trace
+
 
 @dataclass
 class ValidationResult:
@@ -53,6 +58,27 @@ class AIAgentInterface(ABC):
     def generate_test_cases(self, function_signature: str) -> List[str]:
         """
         Generate unit test case suggestions for a given function signature.
+        """
+        pass
+
+    @abstractmethod
+    def evaluate_staging_logic(self, form_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Intelligent assessment of IFRS 9 Stage using DPD, SICR, and default flags.
+        """
+        pass
+
+    @abstractmethod
+    def classify_instrument(self, form_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Determine measurement category per SPPI and business model tests.
+        """
+        pass
+
+    @abstractmethod
+    def generate_explainability_trace(self, form_data: Dict[str, Any]) -> str:
+        """
+        Return interpretable summary explaining staging and classification decisions.
         """
         pass
 
@@ -134,6 +160,15 @@ class ClaudeAgent(AIAgentInterface):
         tests = result.get("completion", "")
         return tests.splitlines()
 
+    def evaluate_staging_logic(self, form_data: Dict[str, Any]) -> Dict[str, Any]:
+        return evaluate_staging_logic(form_data)
+
+    def classify_instrument(self, form_data: Dict[str, Any]) -> Dict[str, Any]:
+        return classify_instrument(form_data)
+
+    def generate_explainability_trace(self, form_data: Dict[str, Any]) -> str:
+        return generate_explainability_trace(form_data)
+
 
 class CodexAgent(AIAgentInterface):
     """
@@ -209,6 +244,15 @@ class CodexAgent(AIAgentInterface):
         result = self._call_api(messages)
         content = result.get("choices", [])[0].get("message", {}).get("content", "")
         return content.splitlines()
+
+    def evaluate_staging_logic(self, form_data: Dict[str, Any]) -> Dict[str, Any]:
+        return evaluate_staging_logic(form_data)
+
+    def classify_instrument(self, form_data: Dict[str, Any]) -> Dict[str, Any]:
+        return classify_instrument(form_data)
+
+    def generate_explainability_trace(self, form_data: Dict[str, Any]) -> str:
+        return generate_explainability_trace(form_data)
 
 
 class AIAgentFactory:
