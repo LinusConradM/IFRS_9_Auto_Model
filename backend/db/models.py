@@ -188,3 +188,53 @@ class ECLForecast(Base):
     generated_by = Column(String, nullable=False)
     generated_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     version = relationship('LoanBookVersion')
+
+
+class UploadHistory(Base):
+    __tablename__ = 'upload_history'
+    upload_id = Column(Integer, primary_key=True)
+    filename = Column(String, nullable=False)
+    checksum = Column(String, nullable=False)
+    uploaded_by = Column(String, nullable=True)
+    upload_timestamp = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    schema_version = Column(String, nullable=False)
+    total_rows = Column(Integer, nullable=False)
+    valid_rows = Column(Integer, nullable=False)
+    invalid_rows = Column(Integer, nullable=False)
+    raw_instruments = relationship('RawInstrument', back_populates='upload_history')
+    validated_instruments = relationship('ValidatedInstrument', back_populates='upload_history')
+
+
+class RawInstrument(Base):
+    __tablename__ = 'raw_instruments'
+    id = Column(Integer, primary_key=True)
+    upload_id = Column(Integer, ForeignKey('upload_history.upload_id'), nullable=False, index=True)
+    row_number = Column(Integer, nullable=False)
+    raw_data = Column(JSONB, nullable=False)
+    errors = Column(JSONB, nullable=True)
+    upload_history = relationship('UploadHistory', back_populates='raw_instruments')
+
+
+class ValidatedInstrument(Base):
+    __tablename__ = 'validated_instruments'
+    id = Column(Integer, primary_key=True)
+    upload_id = Column(Integer, ForeignKey('upload_history.upload_id'), nullable=False, index=True)
+    instrument_id = Column(String, nullable=False, index=True)
+    borrower_id = Column(String, nullable=False)
+    asset_class = Column(String, nullable=False)
+    classification_category = Column(String, nullable=False)
+    measurement_basis = Column(String, nullable=False)
+    off_balance_flag = Column(Boolean, nullable=False)
+    pd_12m = Column(Float, nullable=False)
+    pd_lifetime = Column(Float, nullable=False)
+    lgd = Column(Float, nullable=False)
+    ead = Column(Float, nullable=False)
+    sicr_flag = Column(Boolean, nullable=False)
+    eir = Column(Float, nullable=False)
+    collateral_flag = Column(Boolean, nullable=False)
+    collateral_type = Column(String, nullable=True)
+    collateral_value = Column(Numeric, nullable=True)
+    appraisal_date = Column(Date, nullable=True)
+    drawdown_date = Column(Date, nullable=False)
+    maturity_date = Column(Date, nullable=False)
+    upload_history = relationship('UploadHistory', back_populates='validated_instruments')

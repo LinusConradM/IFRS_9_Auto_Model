@@ -1,0 +1,3 @@
+instrument_id,borrower_id,asset_class,classification_category,measurement_basis,off_balance_flag,pd_12m,pd_lifetime,lgd,ead,sicr_flag,eir,collateral_flag,collateral_type,collateral_value,appraisal_date,drawdown_date,maturity_date
+ID3,B3,Loans,Amortised cost,AC,false,0.1,0.2,0.5,1000,false,0.05,false,,,,2020-01-01,2021-01-01
+ID4,B4,Loans,Amortised cost,AC,false,,0.2,0.5,1000,false,0.05,false,,,,2020-01-01,2021-01-01

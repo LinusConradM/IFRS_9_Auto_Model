@@ -4,3 +4,5 @@ requests
 python-dotenv
 SQLAlchemy>=1.4
 psycopg2-binary>=2.9
+python-multipart
+openpyxl
