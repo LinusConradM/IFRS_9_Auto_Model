@@ -146,3 +146,81 @@ def test_codex_parse_and_validate(monkeypatch):
     vr = agent.validate_form_fields({'b': 2})
     assert not vr.is_valid
     assert vr.errors == [{'field': None, 'issue': 'Malformed response'}]
+
+
+def test_evaluate_staging_logic_module():
+    from services.staging_logic import evaluate_staging_logic
+
+    data = {'dpd': 0, 'sicr': False, 'default_flag': False}
+    result = evaluate_staging_logic(data)
+    assert result['stage'] == 1
+    assert isinstance(result['reasons'], list)
+
+    data = {'dpd': 60, 'sicr': False, 'default_flag': False}
+    result = evaluate_staging_logic(data)
+    assert result['stage'] == 2
+
+    data = {'dpd': 10, 'sicr': False, 'default_flag': True}
+    result = evaluate_staging_logic(data)
+    assert result['stage'] == 3
+
+
+def test_classify_instrument_module():
+    from services.classification_logic import classify_instrument
+
+    data = {'sppi': True, 'business_model': 'Hold to collect'}
+    result = classify_instrument(data)
+    assert result['category'] == 'Amortized Cost'
+
+    data = {'sppi': True, 'business_model': 'Hold to collect and sell'}
+    result = classify_instrument(data)
+    assert result['category'] == 'FVOCI'
+
+    data = {'sppi': True, 'business_model': 'Other'}
+    result = classify_instrument(data)
+    assert result['category'] == 'FVTPL'
+
+    data = {'sppi': False, 'business_model': 'Hold to collect'}
+    result = classify_instrument(data)
+    assert result['category'] == 'FVTPL'
+
+
+def test_generate_explainability_trace_module():
+    from services.explainability import generate_explainability_trace
+
+    data = {
+        'dpd': 90,
+        'sicr': False,
+        'default_flag': False,
+        'sppi': True,
+        'business_model': 'Hold to collect',
+    }
+    trace = generate_explainability_trace(data)
+    assert 'Stage Evaluation' in trace
+    assert 'Classification' in trace
+    assert 'Assigned Stage' in trace
+    assert 'Assigned Amortized Cost' in trace
+
+
+def test_agent_delegates_logic_methods(monkeypatch):
+    from services.ai_agent import ClaudeAgent, CodexAgent
+    from services.staging_logic import evaluate_staging_logic as direct_stage
+    from services.classification_logic import classify_instrument as direct_classify
+    from services.explainability import generate_explainability_trace as direct_trace
+
+    data = {
+        'dpd': 10,
+        'sicr': True,
+        'default_flag': False,
+        'sppi': True,
+        'business_model': 'Hold to collect and sell',
+    }
+    agent_c = ClaudeAgent(os.getenv('CLAUDE_API_KEY', 'key'))
+    assert agent_c.evaluate_staging_logic(data) == direct_stage(data)
+    assert agent_c.classify_instrument(data) == direct_classify(data)
+    assert agent_c.generate_explainability_trace(data) == direct_trace(data)
+
+    agent_o = CodexAgent(os.getenv('OPENAI_API_KEY', 'key'))
+    assert agent_o.evaluate_staging_logic(data) == direct_stage(data)
+    assert agent_o.classify_instrument(data) == direct_classify(data)
+    assert agent_o.generate_explainability_trace(data) == direct_trace(data)
