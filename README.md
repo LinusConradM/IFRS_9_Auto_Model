@@ -45,12 +45,30 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
+#### Database Migrations
+
+Generate and apply database migrations (skip initialization if already set up):
+```bash
+cd backend
+# initialize alembic on first run
+alembic init alembic
+alembic revision --autogenerate -m "Initial database schema"
+alembic upgrade head
+```
+
+#### Seeding Dummy Data
+
+Load IFRS 9 dummy loan book data into the database:
+```bash
+python seed_ifrs9.py --csv full_ifrs9_dummy_loan_book.csv
+```
+
 ### Environment Variables
 
-Copy the example environment file and update the variables:
+# Copy the example environment file from the project root and update variables:
 
 ```bash
-cp .env.example .env
+cp ../.env.example .env
 # Edit .env and configure your database credentials
 # Optionally configure AI agent and credentials:
 # AI_AGENT=codex  # or "claude"

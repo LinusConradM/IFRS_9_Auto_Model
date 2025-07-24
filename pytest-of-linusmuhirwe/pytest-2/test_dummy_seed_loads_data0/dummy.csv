@@ -1,0 +1,2 @@
+loan_id,borrower_id,drawdown_date,maturity_date,pd_12m,pd_lifetime,lgd,ead,sicr_flag,stage,impairment_allowance,collateral_type,collateral_value,appraisal_date,ltv,guarantee_amount
+L1,B1,2020-01-01,2021-01-01,0.01,0.02,0.5,1000,true,1,50,Mortgage,500,2020-06-01,0.5,100
