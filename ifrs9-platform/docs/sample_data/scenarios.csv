@@ -1,0 +1,4 @@
+scenario_name,scenario_type,probability_weight,gdp_growth,inflation_rate,unemployment_rate,interest_rate,effective_date
+Base Case,BASE,0.60,5.0,5.0,5.0,10.0,2024-01-01
+Upside Scenario,UPSIDE,0.20,7.0,4.0,4.0,9.0,2024-01-01
+Downside Scenario,DOWNSIDE,0.20,2.0,8.0,8.0,12.0,2024-01-01

@@ -1,0 +1,6 @@
+customer_id,name,customer_type,sector,credit_rating,country
+CUST001,ABC Manufacturing Ltd,CORPORATE,Manufacturing,BBB,Uganda
+CUST002,XYZ Traders,SME,Retail,BB,Uganda
+CUST003,John Doe,RETAIL,Individual,B,Uganda
+CUST004,Tech Solutions Inc,CORPORATE,Technology,A,Uganda
+CUST005,Small Shop,SME,Retail,CCC,Uganda
