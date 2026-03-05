@@ -187,7 +187,7 @@ This implementation plan covers the development of a comprehensive IFRS 9 automa
     - Flag duplicates in validation report
     - _Requirements: 16.4_
   
-  - [ ] 5.4 Implement import approval workflow
+  - [x] 5.4 Implement import approval workflow
     - Create import staging area for pending imports
     - Implement approve_import and reject_import methods
     - Only commit data to main tables after approval
@@ -811,7 +811,7 @@ This implementation plan covers the development of a comprehensive IFRS 9 automa
     - POST /api/v1/imports/{import_id}/reject
     - _Requirements: 6.1, 6.2, 6.3, 6.5, 25.1_
   
-  - [ ] 19.3 Implement financial instrument endpoints
+  - [x] 19.3 Implement financial instrument endpoints
     - GET /api/v1/instruments (list with pagination, filtering)
     - GET /api/v1/instruments/{instrument_id}
     - POST /api/v1/instruments (create new instrument)
@@ -844,7 +844,7 @@ This implementation plan covers the development of a comprehensive IFRS 9 automa
     - GET /api/v1/ecl/jobs/{job_id} (get async job status)
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 25.1_
   
-  - [ ] 19.7 Implement parameter endpoints
+  - [x] 19.7 Implement parameter endpoints
     - GET /api/v1/parameters (list parameters with filters)
     - GET /api/v1/parameters/{parameter_id}
     - POST /api/v1/parameters (create new parameter)
@@ -853,7 +853,7 @@ This implementation plan covers the development of a comprehensive IFRS 9 automa
     - POST /api/v1/parameters/{parameter_id}/approve
     - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5, 25.1_
   
-  - [ ] 19.8 Implement macroeconomic scenario endpoints
+  - [x] 19.8 Implement macroeconomic scenario endpoints
     - GET /api/v1/scenarios (list scenarios)
     - GET /api/v1/scenarios/{scenario_id}
     - POST /api/v1/scenarios (create scenario)
@@ -861,7 +861,7 @@ This implementation plan covers the development of a comprehensive IFRS 9 automa
     - DELETE /api/v1/scenarios/{scenario_id}
     - _Requirements: 8.1, 8.2, 8.3, 25.1_
 
-  - [ ] 19.9 Implement reporting endpoints
+  - [x] 19.9 Implement reporting endpoints
     - GET /api/v1/reports/regulatory/{report_type} (generate regulatory report)
     - GET /api/v1/reports/management/{report_type} (generate management report)
     - POST /api/v1/reports/custom (generate custom report)

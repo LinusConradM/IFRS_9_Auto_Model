@@ -39,14 +39,16 @@ async def import_loan_portfolio(
         # Determine file format
         file_format = 'csv' if file.filename.endswith('.csv') else 'json'
         
-        logger.info(f"Importing loan portfolio: {file.filename}, format={file_format}, user={user_id}")
+        logger.info(f"Importing loan portfolio: {file.filename}, format={file_format}, user={user_id}, auto_approve={auto_approve}")
         
         # Import data
         import_service = DataImportService(db)
         result = import_service.import_loan_portfolio(
             file_content=file_content,
             file_format=file_format,
-            auto_approve=auto_approve
+            auto_approve=auto_approve,
+            user_id=user_id,
+            filename=file.filename
         )
         
         return {
@@ -157,3 +159,100 @@ async def import_macro_scenarios(
     except Exception as e:
         logger.error(f"Error importing macro scenarios: {e}")
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/{import_id}", response_model=Dict[str, Any])
+async def get_import_status(
+    import_id: str,
+    db: Session = Depends(get_db),
+    user_id: str = Depends(get_current_user_id)
+):
+    """
+    Get status of an import batch.
+    
+    Args:
+        import_id: Import batch ID
+        db: Database session
+        user_id: Current user ID
+        
+    Returns:
+        Import status details
+    """
+    try:
+        import_service = DataImportService(db)
+        status = import_service.get_import_status(import_id)
+        return status
+        
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error getting import status: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{import_id}/approve", response_model=Dict[str, Any])
+async def approve_import(
+    import_id: str,
+    notes: str = None,
+    db: Session = Depends(get_db),
+    user_id: str = Depends(get_current_user_id)
+):
+    """
+    Approve a pending import and commit data to main tables.
+    
+    Args:
+        import_id: Import batch ID
+        notes: Optional approval notes
+        db: Database session
+        user_id: Current user ID
+        
+    Returns:
+        Approval result
+    """
+    try:
+        logger.info(f"Approving import {import_id} by user {user_id}")
+        
+        import_service = DataImportService(db)
+        result = import_service.approve_import(import_id, user_id, notes)
+        
+        return result
+        
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error approving import: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{import_id}/reject", response_model=Dict[str, Any])
+async def reject_import(
+    import_id: str,
+    notes: str = None,
+    db: Session = Depends(get_db),
+    user_id: str = Depends(get_current_user_id)
+):
+    """
+    Reject a pending import and delete staged data.
+    
+    Args:
+        import_id: Import batch ID
+        notes: Optional rejection notes
+        db: Database session
+        user_id: Current user ID
+        
+    Returns:
+        Rejection result
+    """
+    try:
+        logger.info(f"Rejecting import {import_id} by user {user_id}")
+        
+        import_service = DataImportService(db)
+        result = import_service.reject_import(import_id, user_id, notes)
+        
+        return result
+        
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error rejecting import: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

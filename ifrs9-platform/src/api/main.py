@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import os
 
 from src.utils.logging_config import setup_logging
-from src.api.routes import imports, classification, staging, ecl, audit, instruments
+from src.api.routes import imports, classification, staging, ecl, audit, instruments, parameters, scenarios, reporting, auth, staging_overrides, ead
 
 # Setup logging
 setup_logging(os.getenv("LOG_LEVEL", "INFO"))
@@ -28,12 +28,18 @@ app.add_middleware(
 )
 
 # Include API routers
+app.include_router(auth.router, prefix="/api/v1")
+app.include_router(staging_overrides.router, prefix="/api/v1")
+app.include_router(ead.router, prefix="/api/v1")
 app.include_router(imports.router)
 app.include_router(classification.router)
 app.include_router(staging.router)
 app.include_router(ecl.router)
 app.include_router(audit.router)
 app.include_router(instruments.router, prefix="/api/v1")
+app.include_router(parameters.router)
+app.include_router(scenarios.router)
+app.include_router(reporting.router)
 
 
 @app.get("/")
@@ -72,7 +78,10 @@ async def api_info():
             "staging": "/api/v1/staging",
             "ecl": "/api/v1/ecl",
             "audit": "/api/v1/audit",
-            "instruments": "/api/v1/instruments"
+            "instruments": "/api/v1/instruments",
+            "parameters": "/api/v1/parameters",
+            "scenarios": "/api/v1/scenarios",
+            "reports": "/api/v1/reports"
         },
         "documentation": {
             "swagger": "/api/docs",

@@ -161,9 +161,36 @@ class StagingService:
                 indicators.append("PD_ABSOLUTE_INCREASE")
                 details["absolute_increase"] = float(current_pd - instrument.initial_recognition_pd)
         
-        # Qualitative indicators (simplified for MVP)
-        # In production, these would check actual flags in the database
-        if instrument.is_modified:
+        # Qualitative indicators - Phase 1 enhancements
+        # Check watchlist status
+        if hasattr(instrument, 'watchlist_status') and instrument.watchlist_status:
+            indicators.append("WATCHLIST")
+            details["watchlist_status"] = instrument.watchlist_status
+        
+        # Check restructuring flag
+        if hasattr(instrument, 'is_restructured') and instrument.is_restructured:
+            indicators.append("RESTRUCTURED")
+            if hasattr(instrument, 'restructuring_date') and instrument.restructuring_date:
+                details["restructuring_date"] = str(instrument.restructuring_date)
+        
+        # Check forbearance
+        if hasattr(instrument, 'forbearance_granted') and instrument.forbearance_granted:
+            indicators.append("FORBEARANCE")
+            if hasattr(instrument, 'forbearance_date') and instrument.forbearance_date:
+                details["forbearance_date"] = str(instrument.forbearance_date)
+        
+        # Check sector risk rating downgrade (requires customer relationship)
+        if hasattr(instrument, 'customer') and instrument.customer:
+            if hasattr(instrument.customer, 'sector_risk_rating') and instrument.customer.sector_risk_rating:
+                # Assume rating scale: AAA, AA, A, BBB, BB, B, CCC, CC, C
+                # Downgrade from investment grade (BBB+) to sub-investment grade triggers SICR
+                risky_ratings = ['BB', 'B', 'CCC', 'CC', 'C', 'D']
+                if instrument.customer.sector_risk_rating in risky_ratings:
+                    indicators.append("SECTOR_DOWNGRADE")
+                    details["sector_risk_rating"] = instrument.customer.sector_risk_rating
+        
+        # Legacy check for is_modified (backward compatibility)
+        if instrument.is_modified and "FORBEARANCE" not in indicators:
             indicators.append("FORBEARANCE")
             details["modification_date"] = str(instrument.modification_date)
         

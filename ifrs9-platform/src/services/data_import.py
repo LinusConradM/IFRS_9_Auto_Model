@@ -10,7 +10,8 @@ from sqlalchemy.orm import Session
 
 from src.db.models import (
     Customer, FinancialInstrument, ParameterSet, MacroScenario,
-    InstrumentType, Classification, BusinessModel, Stage, InstrumentStatus, CustomerType
+    InstrumentType, Classification, BusinessModel, Stage, InstrumentStatus, CustomerType,
+    ImportBatch, StagedInstrument, ImportStatus
 )
 from src.utils.logging_config import get_logger
 
@@ -53,7 +54,8 @@ class DataImportService:
         self.db = db
     
     def import_loan_portfolio(self, file_content: str, file_format: str = 'csv',
-                             auto_approve: bool = False) -> ImportResult:
+                             auto_approve: bool = False, user_id: str = 'system',
+                             filename: str = None) -> ImportResult:
         """
         Import loan portfolio data from CSV or JSON file.
         
@@ -66,12 +68,25 @@ class DataImportService:
             file_content: File content as string
             file_format: 'csv' or 'json'
             auto_approve: If True, import directly; if False, stage for approval
+            user_id: User ID performing the import
+            filename: Original filename
             
         Returns:
             ImportResult with import statistics
         """
         import_id = str(uuid.uuid4())
-        logger.info(f"Starting loan portfolio import {import_id}, format={file_format}")
+        logger.info(f"Starting loan portfolio import {import_id}, format={file_format}, auto_approve={auto_approve}")
+        
+        # Create import batch record
+        import_batch = ImportBatch(
+            import_id=import_id,
+            import_type='LOAN_PORTFOLIO',
+            status=ImportStatus.APPROVED if auto_approve else ImportStatus.PENDING,
+            filename=filename,
+            file_format=file_format,
+            submitted_by=user_id
+        )
+        self.db.add(import_batch)
         
         # Parse file
         if file_format == 'csv':
@@ -95,7 +110,7 @@ class DataImportService:
                     errors.extend([e.to_dict() for e in validation_errors])
                     continue
                 
-                # Check for duplicates
+                # Check for duplicates in main table
                 existing = self.db.query(FinancialInstrument).filter(
                     FinancialInstrument.instrument_id == record['instrument_id']
                 ).first()
@@ -110,17 +125,16 @@ class DataImportService:
                     })
                     continue
                 
-                # Get or create customer
-                customer = self._get_or_create_customer(record)
-                
-                # Create instrument
-                instrument = self._create_instrument(record, customer.id)
-                
                 if auto_approve:
+                    # Import directly to main tables
+                    customer = self._get_or_create_customer(record)
+                    instrument = self._create_instrument(record, customer.id)
                     self.db.add(instrument)
                     imported_count += 1
                 else:
-                    # TODO: Add to staging area for approval
+                    # Stage for approval
+                    staged = self._create_staged_instrument(record, import_id)
+                    self.db.add(staged)
                     imported_count += 1
                 
             except Exception as e:
@@ -133,10 +147,15 @@ class DataImportService:
                     'value': None
                 })
         
-        if auto_approve:
-            self.db.commit()
+        # Update import batch statistics
+        import_batch.records_processed = len(records)
+        import_batch.records_valid = imported_count
+        import_batch.records_invalid = failed_count
+        import_batch.validation_errors = errors if errors else None
         
-        status = 'completed' if failed_count == 0 else 'completed_with_errors'
+        self.db.commit()
+        
+        status = 'pending_approval' if not auto_approve else ('completed' if failed_count == 0 else 'completed_with_errors')
         
         result = ImportResult(
             import_id=import_id,
@@ -147,7 +166,7 @@ class DataImportService:
             errors=errors
         )
         
-        logger.info(f"Import {import_id} completed: {imported_count} imported, {failed_count} failed")
+        logger.info(f"Import {import_id} completed: {imported_count} imported, {failed_count} failed, status={status}")
         return result
     
     def import_customer_data(self, file_content: str, file_format: str = 'csv') -> ImportResult:
@@ -470,3 +489,239 @@ class DataImportService:
                 continue
         
         raise ValueError(f"Unable to parse date: {date_str}")
+    def _create_staged_instrument(self, record: Dict, import_id: str) -> StagedInstrument:
+        """Create staged instrument from record"""
+        staged = StagedInstrument(
+            import_id=import_id,
+            instrument_id=record['instrument_id'],
+            instrument_type=record['instrument_type'],
+            customer_id=record['customer_id'],
+            origination_date=self._parse_date(record['origination_date']),
+            maturity_date=self._parse_date(record['maturity_date']),
+            principal_amount=Decimal(str(record['principal_amount'])),
+            outstanding_balance=Decimal(str(record.get('outstanding_balance', record['principal_amount']))),
+            interest_rate=Decimal(str(record['interest_rate'])),
+            currency=record.get('currency', 'UGX'),
+            days_past_due=int(record.get('days_past_due', 0)),
+            is_poci=record.get('is_poci', 'false').lower() == 'true',
+            is_forbearance=record.get('is_forbearance', 'false').lower() == 'true',
+            is_watchlist=record.get('is_watchlist', 'false').lower() == 'true',
+            customer_name=record.get('customer_name'),
+            customer_type=record.get('customer_type'),
+            customer_sector=record.get('customer_sector'),
+            customer_credit_rating=record.get('customer_credit_rating')
+        )
+        return staged
+
+    def approve_import(self, import_id: str, user_id: str, notes: str = None) -> Dict:
+        """
+        Approve a pending import and commit data to main tables.
+
+        Args:
+            import_id: Import batch ID
+            user_id: User ID approving the import
+            notes: Optional approval notes
+
+        Returns:
+            Dictionary with approval result
+        """
+        logger.info(f"Approving import {import_id} by user {user_id}")
+
+        # Get import batch
+        import_batch = self.db.query(ImportBatch).filter(
+            ImportBatch.import_id == import_id
+        ).first()
+
+        if not import_batch:
+            raise ValueError(f"Import batch {import_id} not found")
+
+        if import_batch.status != ImportStatus.PENDING:
+            raise ValueError(f"Import batch {import_id} is not pending (status: {import_batch.status})")
+
+        # Get staged instruments
+        staged_instruments = self.db.query(StagedInstrument).filter(
+            StagedInstrument.import_id == import_id
+        ).all()
+
+        if not staged_instruments:
+            raise ValueError(f"No staged instruments found for import {import_id}")
+
+        # Move staged instruments to main tables
+        imported_count = 0
+        failed_count = 0
+        errors = []
+
+        for staged in staged_instruments:
+            try:
+                # Check for duplicates again (in case data changed since staging)
+                existing = self.db.query(FinancialInstrument).filter(
+                    FinancialInstrument.instrument_id == staged.instrument_id
+                ).first()
+
+                if existing:
+                    failed_count += 1
+                    errors.append({
+                        'instrument_id': staged.instrument_id,
+                        'error': 'Duplicate instrument_id already exists in main table'
+                    })
+                    continue
+
+                # Get or create customer
+                customer = self.db.query(Customer).filter(
+                    Customer.customer_id == staged.customer_id
+                ).first()
+
+                if not customer:
+                    customer = Customer(
+                        customer_id=staged.customer_id,
+                        name=staged.customer_name or f"Customer {staged.customer_id}",
+                        customer_type=CustomerType[staged.customer_type] if staged.customer_type else CustomerType.RETAIL,
+                        sector=staged.customer_sector,
+                        credit_rating=staged.customer_credit_rating,
+                        country='Uganda',
+                        is_active=True
+                    )
+                    self.db.add(customer)
+                    self.db.flush()  # Get customer.id
+
+                # Create instrument
+                instrument = FinancialInstrument(
+                    instrument_id=staged.instrument_id,
+                    customer_id=customer.id,
+                    instrument_type=InstrumentType[staged.instrument_type],
+                    classification=Classification.AMORTIZED_COST,  # Default, will be classified
+                    business_model=BusinessModel.HOLD_TO_COLLECT,  # Default
+                    sppi_test_result=True,  # Default
+                    current_stage=Stage.STAGE_1,  # Default
+                    status=InstrumentStatus.ACTIVE,
+                    origination_date=staged.origination_date,
+                    maturity_date=staged.maturity_date,
+                    principal_amount=staged.principal_amount,
+                    outstanding_balance=staged.outstanding_balance,
+                    interest_rate=staged.interest_rate,
+                    currency=staged.currency,
+                    days_past_due=staged.days_past_due,
+                    is_poci=staged.is_poci,
+                    is_forbearance=staged.is_forbearance,
+                    is_watchlist=staged.is_watchlist
+                )
+
+                self.db.add(instrument)
+                imported_count += 1
+
+            except Exception as e:
+                logger.error(f"Error approving staged instrument {staged.instrument_id}: {e}")
+                failed_count += 1
+                errors.append({
+                    'instrument_id': staged.instrument_id,
+                    'error': str(e)
+                })
+
+        # Update import batch status
+        import_batch.status = ImportStatus.APPROVED
+        import_batch.reviewed_by = user_id
+        import_batch.reviewed_at = datetime.utcnow()
+        import_batch.review_notes = notes
+
+        # Delete staged instruments after successful approval
+        if failed_count == 0:
+            for staged in staged_instruments:
+                self.db.delete(staged)
+
+        self.db.commit()
+
+        logger.info(f"Import {import_id} approved: {imported_count} imported, {failed_count} failed")
+
+        return {
+            'import_id': import_id,
+            'status': 'approved',
+            'records_imported': imported_count,
+            'records_failed': failed_count,
+            'errors': errors
+        }
+
+    def reject_import(self, import_id: str, user_id: str, notes: str = None) -> Dict:
+        """
+        Reject a pending import and delete staged data.
+
+        Args:
+            import_id: Import batch ID
+            user_id: User ID rejecting the import
+            notes: Optional rejection notes
+
+        Returns:
+            Dictionary with rejection result
+        """
+        logger.info(f"Rejecting import {import_id} by user {user_id}")
+
+        # Get import batch
+        import_batch = self.db.query(ImportBatch).filter(
+            ImportBatch.import_id == import_id
+        ).first()
+
+        if not import_batch:
+            raise ValueError(f"Import batch {import_id} not found")
+
+        if import_batch.status != ImportStatus.PENDING:
+            raise ValueError(f"Import batch {import_id} is not pending (status: {import_batch.status})")
+
+        # Update import batch status
+        import_batch.status = ImportStatus.REJECTED
+        import_batch.reviewed_by = user_id
+        import_batch.reviewed_at = datetime.utcnow()
+        import_batch.review_notes = notes
+
+        # Delete staged instruments
+        deleted_count = self.db.query(StagedInstrument).filter(
+            StagedInstrument.import_id == import_id
+        ).delete()
+
+        self.db.commit()
+
+        logger.info(f"Import {import_id} rejected: {deleted_count} staged records deleted")
+
+        return {
+            'import_id': import_id,
+            'status': 'rejected',
+            'records_deleted': deleted_count
+        }
+
+    def get_import_status(self, import_id: str) -> Dict:
+        """
+        Get status of an import batch.
+
+        Args:
+            import_id: Import batch ID
+
+        Returns:
+            Dictionary with import status details
+        """
+        import_batch = self.db.query(ImportBatch).filter(
+            ImportBatch.import_id == import_id
+        ).first()
+
+        if not import_batch:
+            raise ValueError(f"Import batch {import_id} not found")
+
+        # Get staged instruments count
+        staged_count = self.db.query(StagedInstrument).filter(
+            StagedInstrument.import_id == import_id
+        ).count()
+
+        return {
+            'import_id': import_batch.import_id,
+            'import_type': import_batch.import_type,
+            'status': import_batch.status.value,
+            'filename': import_batch.filename,
+            'file_format': import_batch.file_format,
+            'records_processed': import_batch.records_processed,
+            'records_valid': import_batch.records_valid,
+            'records_invalid': import_batch.records_invalid,
+            'validation_errors': import_batch.validation_errors,
+            'staged_count': staged_count,
+            'submitted_by': import_batch.submitted_by,
+            'submitted_at': import_batch.submitted_at.isoformat() if import_batch.submitted_at else None,
+            'reviewed_by': import_batch.reviewed_by,
+            'reviewed_at': import_batch.reviewed_at.isoformat() if import_batch.reviewed_at else None,
+            'review_notes': import_batch.review_notes
+        }

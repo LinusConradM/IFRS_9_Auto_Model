@@ -101,8 +101,10 @@ const ECLCalculator: React.FC = () => {
 
       {result && (
         <Box>
-          <Alert severity="success" sx={{ mb: 3 }}>
-            ECL calculation completed successfully!
+          <Alert severity={result.ecl_amount > 0 ? "success" : "info"} sx={{ mb: 3 }}>
+            {result.ecl_amount > 0 
+              ? "ECL calculation completed successfully!" 
+              : "ECL calculation completed. Note: ECL is zero (instrument may have zero principal or be fully collateralized)."}
           </Alert>
 
           <Box sx={{ display: 'flex', gap: 3, mb: 3, flexWrap: 'wrap' }}>

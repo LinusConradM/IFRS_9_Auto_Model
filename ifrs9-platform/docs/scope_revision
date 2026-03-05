@@ -1,0 +1,47 @@
+The core problem I'm solving: Right now, our IFRS 9 process is fragmented across Excel workbooks, manual staging, and static reports. I need a unified system that automates ECL computation, makes the model auditable, and gives me real-time visibility into credit risk across the entire loan book. Here's the detailed breakdown of what I need:
+
+# 1. Staging Engine (Stage 1 / 2 / 3 Classification)
+This is the backbone. I want the system to automatically classify every exposure into IFRS 9 stages based on rules we define — not manual overrides buried in spreadsheets. Specifically:
+Stage 1 should capture performing loans with no significant increase in credit risk (SICR). Stage 2 triggers when there's been a SICR since origination — and I need the system to evaluate this using both quantitative thresholds (like a PD increase of more than X basis points or a relative PD change exceeding a defined ratio) and qualitative overlays (restructured loans, watchlist flags, sector downgrades). Stage 3 is default — aligned with our internal definition of default, which typically means 90+ days past due, but should also flag loans where we've initiated recovery, the borrower is in judicial management, or there's been a significant adverse event.
+The key thing: I want a full audit trail on every stage migration. When a loan moves from Stage 1 to Stage 2, I need to see exactly which trigger caused it, when, and whether it was system-driven or manually overridden (with approval workflow for overrides). This is critical for both internal governance and for BOU examinations.
+
+# 2. PD Model (Probability of Default)
+I need both point-in-time (PIT) and through-the-cycle (TTC) PD estimates. The system should support transition matrix methodology — building migration matrices from our historical internal ratings data, ideally going back 5+ years. For retail portfolios where we don't have granular ratings, I want a behavioral scorecard-based PD.
+Critically, I want the system to incorporate forward-looking macroeconomic scenarios. We should be able to define at least three scenarios — baseline, optimistic, and downturn — each with probability weights that feed into the weighted-average ECL. The macro variables I care about for Uganda include GDP growth, inflation rate (CPI), lending rates, exchange rate (UGX/USD), and commodity prices (coffee, oil). The system should allow the economics team to update these quarterly without needing a developer. 
+
+# 3. LGD Model (Loss Given Default)
+LGD should be computed at the facility level, not just a flat percentage applied across the book. I want it to factor in collateral values (with haircuts by collateral type — property, motor vehicles, government securities, cash), recovery rates from our actual historical workout data, time-to-recovery discounting, and cure rates for Stage 2 exposures that revert to performing.
+The system should also handle collateral revaluation — pulling in updated forced-sale values and applying regulatory haircuts automatically. For unsecured lending, I want a statistical LGD model based on our historical loss experience by product and segment.
+
+# 4. EAD Model (Exposure at Default)
+For on-balance sheet exposures, EAD is straightforward — it's the outstanding balance. But I need the system to properly handle off-balance sheet items using Credit Conversion Factors (CCFs). Undrawn commitments, guarantees, letters of credit — each needs its own CCF, ideally calibrated from our internal data showing how much of undrawn facilities borrowers actually draw down before default.
+For revolving facilities, I want the system to model the expected drawdown behavior dynamically rather than using a flat regulatory CCF.
+
+# 5. ECL Calculation Engine
+This is where it all comes together. The system computes ECL as PD × LGD × EAD, discounted at the effective interest rate. For Stage 1, it uses a 12-month PD horizon. For Stages 2 and 3, it uses lifetime PD — so the system needs to project PD curves over the remaining maturity of each facility.
+I want the ECL engine to run at the individual facility level, not at portfolio level, so we can drill down to any single loan and see exactly how its provision was calculated. The system should support both the general approach and the simplified approach (for trade receivables if we ever need it).
+The macro scenario weighting should be applied here — three scenarios, probability-weighted, producing a single ECL number per facility that rolls up into portfolio, segment, and entity-level totals.
+
+# 6. Dashboard and Visualization Layer
+This is what I see every morning when I log in. I want:
+- An executive summary view showing total ECL by stage, coverage ratios (ECL as a percentage of gross exposure by stage), and period-over-period movement. I want to see at a glance whether our provisions are growing, why, and where.
+- A stage migration waterfall — showing how many loans (by count and value) moved between stages this quarter, with the net impact on ECL. This is the single most important visual for Board reporting.
+- A vintage analysis view — showing ECL and default rates by origination cohort, so I can see whether recent vintages are performing better or worse than historical ones.
+- A sector and segment heatmap — visualizing concentration risk and ECL intensity across sectors (agriculture, trade, manufacturing, real estate, personal lending) and customer segments (corporate, SME, retail).
+- A sensitivity analysis dashboard — showing how ECL changes under different macro scenarios, different PD assumptions, and different LGD haircuts. The Board always asks "what if GDP drops another 2%?" — I need to answer that in real time.
+- A model performance monitoring panel — tracking PD model accuracy (predicted vs. actual defaults), LGD backtesting results, and staging accuracy over time. This is critical for model validation and for BOU (Bank of Uganda) examinations.
+
+# 7. Regulatory and Audit Reporting
+The system should generate BOU-compliant reports automatically — specifically the credit risk schedules required under the Financial Institutions Act and any IFRS 9 disclosure requirements. It should also produce the IFRS 7 disclosures (credit quality tables, reconciliation of loss allowances, sensitivity disclosures) in a format the finance team can drop into our annual report.
+Every computation should be fully traceable. If an auditor asks "why is this loan in Stage 2 with an ECL of UGX 450 million?", the system should show the complete calculation chain — the PD used, which scenario weights were applied, the LGD components, the collateral valuation, the EIR used for discounting, and the staging trigger.
+
+# 8. Integration Requirements
+The system needs to pull data from our core banking system (T24/Temenos or whatever we're running), our collateral management system, and our internal ratings system. It should refresh daily for monitoring purposes, with a formal month-end cut-off process for financial reporting.
+I also want API capability so we can feed ECL outputs into our general ledger system for provisioning entries, and into our regulatory reporting tool.
+
+# 9. User Access and Governance
+Role-based access — the credit risk team can run models and adjust parameters, the finance team can view outputs and run reports, the model validation team has read access to all model documentation and backtesting results, and executive management sees dashboards only. All parameter changes (PD curves, LGD assumptions, macro weights) should go through a maker-checker approval workflow.
+The system should also log all user activity for audit purposes — who ran what report, who changed which parameter, and when.
+
+# 10. What success looks like
+When this is done, I should be able to: run a full ECL computation across the entire loan book in under an hour (not the 2-3 weeks it takes now), explain any provision number to the Board or BOU with full traceability, stress-test the portfolio against any macro scenario in minutes, and have confidence that our staging is consistent, auditable, and defensible. This will not only improve our financial reporting but also enhance our risk management and strategic decision-making.

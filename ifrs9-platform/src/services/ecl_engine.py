@@ -294,3 +294,7 @@ class ECLCalculationService:
 
 # Global service instance
 ecl_engine = ECLCalculationService()
+
+
+# Global service instance
+ecl_calculation_service = ECLCalculationService()
